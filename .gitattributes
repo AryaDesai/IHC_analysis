@@ -1,0 +1,2 @@
+# Commit notebooks without their outputs (needs the strip-notebook filter, see README).
+*.ipynb filter=strip-notebook

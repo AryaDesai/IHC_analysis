@@ -1,0 +1,60 @@
+[project]
+name = "mek-ihc-analysis"
+version = "0.1.0"
+description = "IHC intensity profiles along the zebrafish PSM, compared between oscillation phases"
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "scipy>=1.14",
+    "scikit-image>=0.24",
+    "tifffile>=2024.8",
+    "imagecodecs",
+    "roifile",
+    "pyarrow>=18",
+    "matplotlib>=3.9",
+    "nd2>=0.10",
+    "dask[array]>=2024.1",
+    "torch>=2.6",
+    "torchvision>=0.21",
+    "cellpose==4.2.1.1",
+    "opencv-python-headless",
+    "numba>=0.61",
+    "napari[pyqt6]>=0.5,<0.11",
+    "ipykernel",
+    "tqdm",
+    "ipywidgets"
+]
+
+[project.optional-dependencies]
+# On a Windows or Linux machine with an NVIDIA GPU: uv sync --locked --extra cuda
+cuda = ["torch>=2.6", "torchvision>=0.21"]
+
+[dependency-groups]
+dev = ["pytest>=9"]
+notebook = ["jupyterlab>=4"]
+
+[tool.uv]
+# A folder of scripts and a notebook, not an installable package.
+package = false
+# The Torch versions used on the Mac.
+constraint-dependencies = [
+    "torch==2.15.0; sys_platform == 'darwin'",
+    "torchvision==0.29.2; sys_platform == 'darwin'",
+]
+# Platforms the lockfile covers: Apple Silicon Macs, and x86-64 Linux and Windows.
+environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'win32' and (platform_machine == 'AMD64' or platform_machine == 'x86_64')",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cuda", extra = "cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" }]
+torchvision = [{ index = "pytorch-cuda", extra = "cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" }]
