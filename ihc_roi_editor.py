@@ -22,6 +22,7 @@ from ihc_pipeline import (
     _read_mask,
     _roi_sources,
     band_grid,
+    mask_kind,
     discover_samples,
     file_identity,
     load_rois,
@@ -323,7 +324,7 @@ def main():
                 return
             paths = [
                 sample_dir(config, self.sample, "edited_masks") / "Mask.tif",
-                sample_dir(config, self.sample, "masks") / "Mask.tif",
+                sample_dir(config, self.sample, mask_kind(config)) / "Mask.tif",
                 Path(self.sample["raw_path"]).with_suffix("") / "Mask.tif",
             ]
             if self.sample.get("nis_path"):
