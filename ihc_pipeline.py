@@ -1254,6 +1254,17 @@ def _safe_output(sample, c):
     root.mkdir(parents=True, exist_ok=True)
 
 
+def mask_kind(c):
+    """Name of the folder for computed masks, e.g. 'masks_cellpose_denoised'.
+
+    Each combination of segmentation method and DAPI source has its own folder,
+    so changing either setting never overwrites masks made the other way.
+    """
+    method = "cellpose" if c.use_cellpose else "threshold"
+    source = "denoised" if c.use_ai_denoise else "raw"
+    return f"masks_{method}_{source}"
+
+
 def _read_mask(path):
     """Read a mask TIFF as a boolean ZYX array; any value above 0 is inside."""
     mask = tifffile.imread(path) > 0
@@ -1273,14 +1284,14 @@ def segment_sample(sample, config):
     """Return one sample's nuclear mask (boolean ZYX), its calibration and its provenance.
 
     With mask_source='compute' the mask is made from the sample's DAPI and saved
-    in masks/<replicate>/<sample>/, or read from there when reuse_cache is True
+    in <mask_kind>/<replicate>/<sample>/ (see mask_kind), or read from there when reuse_cache is True
     and it already exists. The other mask sources read a mask made elsewhere.
     """
     c = config.validate()
     s = dict(sample)
     _safe_output(s, c)
     _log(f"Mask: {s['replicate']}/{s['sample_id']} (mask_source='{c.mask_source}')")
-    folder = sample_dir(c, s, "masks")
+    folder = sample_dir(c, s, mask_kind(c))
     meta_path, mask_path = folder / "mask.json", folder / "Mask.tif"
     if c.mask_source == "compute" and c.reuse_cache and meta_path.exists() and mask_path.exists():
         _log(f"Mask: using the saved {mask_path}")

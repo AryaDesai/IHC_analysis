@@ -83,9 +83,13 @@ The DAPI that is segmented comes from one of two places:
 `use_cellpose=True` segments the DAPI with Cellpose 4. With `False`, each
 Z-plane is thresholded with the IsoData method instead.
 
-Masks are saved under `masks/` in the output folder and reused on later runs
-while `reuse_cache` is True. The saved mask is not compared with the current
-settings, so set `reuse_cache=False` after changing a mask setting.
+Computed masks are saved in the output folder, in a folder named after how they
+were made: `masks_cellpose_denoised/`, `masks_cellpose_raw/`,
+`masks_threshold_denoised/` or `masks_threshold_raw/`. Changing `use_cellpose` or
+`use_ai_denoise` therefore never overwrites masks made the other way. A saved mask
+is reused on later runs while `reuse_cache` is True. The saved mask is not compared with
+the other Cellpose or filtering settings, so set `reuse_cache=False` after
+changing one of those.
 
 `mask_source='existing'` reads a `Mask.tif` from the folder named after the image
 (for example one made in Fiji), and `mask_source='edited'` reads a mask corrected
@@ -174,7 +178,7 @@ Ranges that should be left out, such as a bright clump, go in an exclusions CSV
 
 ## Output folder
 
-- `masks/`: computed masks, the DAPI that was segmented, Cellpose labels, and
+- `masks_<method>_<source>/`: computed masks, the DAPI that was segmented, Cellpose labels, and
   `mask.json` with the settings and input files used.
 - `edited_masks/`: masks corrected in napari.
 - `rois/`: band CSVs.

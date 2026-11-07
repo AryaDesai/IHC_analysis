@@ -383,3 +383,18 @@ def test_ai_denoise_needs_an_nis_export(tmp_path):
     s = ihc.discover_samples(c).iloc[0]
     with pytest.raises(FileNotFoundError, match="no NIS-denoised file"):
         ihc.segment_sample(s, c)
+
+
+def test_mask_folders_are_separate_for_each_method(tmp_path):
+    rawdir = tmp_path / "N_1_test" / "tiffs"
+    rawdir.mkdir(parents=True)
+    plane = np.zeros((2, 2, 40, 40), np.uint16)
+    plane[:, 0, 10:20, 10:20] = 1000
+    tifffile.imwrite(rawdir / "sample_P1.tiff", plane, imagej=True, resolution=(2, 2),
+                     metadata={"axes": "ZCYX", "unit": "um"})
+    c = cfg(tmp_path, use_ai_denoise=False, use_cellpose=False, background_size_px=0,
+            clahe_window_px=20, device="cpu")
+    s = ihc.discover_samples(c).iloc[0]
+    ihc.segment_sample(s, c)
+    assert (ihc.sample_dir(c, s, "masks_threshold_raw") / "Mask.tif").exists()
+    assert ihc.mask_kind(replace(c, use_cellpose=True, use_ai_denoise=True)) == "masks_cellpose_denoised"
