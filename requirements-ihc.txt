@@ -1,0 +1,23 @@
+# The same packages as pyproject.toml, for installing with pip instead of uv.
+# On an NVIDIA machine, install PyTorch first from https://pytorch.org/get-started/locally/
+numpy>=2.0
+pandas>=2.2
+scipy>=1.14
+scikit-image>=0.24
+tifffile>=2024.8
+imagecodecs
+roifile
+pyarrow>=18
+matplotlib>=3.9
+nd2>=0.10
+dask[array]>=2024.1
+torch>=2.6
+torchvision>=0.21
+cellpose==4.2.1.1
+opencv-python-headless
+numba>=0.61
+napari[pyqt6]>=0.5,<0.11
+ipykernel
+tqdm
+ipywidgets
+pytest

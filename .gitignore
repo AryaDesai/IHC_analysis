@@ -1,0 +1,16 @@
+# Recreate this on each machine with uv sync; do not copy a virtual environment.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.DS_Store
+
+# Generated images, public model caches and machine-specific run state.
+ihc_results/
+.ihc_previous/
+
+
+# Local files kept out of the repository.
+IHC_exclusions.csv
+sort_and_quantify.ipynb
