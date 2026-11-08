@@ -155,8 +155,8 @@ class Config:
     mask_source: str = setting(
         "compute", "Mask",
         "Where the nuclear mask comes from. 'compute' makes it here, 'existing' reads the "
-        "Mask.tif in the image's own folder (for example one made in Fiji), and 'edited' reads "
-        "the mask painted in the napari editor.",
+        "Mask.tif in the image's own folder, and 'edited' reads a mask corrected in Fiji and "
+        "saved as edited_masks/<replicate>/<sample>/Mask.tif in the output folder.",
         ("compute", "existing", "edited"),
     )
     dapi_median_size: int = setting(
@@ -259,10 +259,6 @@ class Config:
     width_override_px: int | None = setting(
         None, "ROI",
         "Band width in pixels to use for every side. None uses the width saved with each ROI.",
-    )
-    new_roi_width_px: int = setting(
-        100, "ROI",
-        "Starting width in pixels of a side drawn in the napari editor.",
     )
     interpolation: str = setting(
         "linear", "ROI",
@@ -452,17 +448,9 @@ class Config:
         "Draw each profile behind the phase average in the per-phase panels.",
     )
     dpi: int = setting(150, "Plot", "Resolution of saved figures, in dots per inch.")
-    viewer_channel: int = setting(
-        1, "Viewer",
-        "Channel shown first in the napari editor, counting from 1.",
-    )
-    viewer_percentiles: tuple = setting(
-        (1.0, 99.7), "Viewer",
-        "Intensity percentiles that set the display contrast in the editor and the QC figure.",
-    )
-    viewer_opacity: float = setting(
-        0.15, "Viewer",
-        "Opacity of the measurement bands drawn in the editor, from 0 to 1.",
+    qc_percentiles: tuple = setting(
+        (1.0, 99.7), "Plot",
+        "Intensity percentiles that set the display contrast of the QC figure.",
     )
 
     def validate(self):
@@ -486,7 +474,7 @@ class Config:
         for name in (
             "batch_size", "image_workers", "threads_per_worker", "mip_block_size", "z_start",
             "mip_start", "minimum_lines", "phase_minimum_lines", "dpi", "dapi_channel",
-            "viewer_channel", "clahe_window_px", "new_roi_width_px",
+            "clahe_window_px",
         ):  # fmt: skip
             x = getattr(self, name)
             fail_unless(
@@ -516,13 +504,12 @@ class Config:
         fail_unless(0 < self.min_mask_fraction <= 1, "min_mask_fraction must be in (0, 1]")
         fail_unless(0 <= self.tile_overlap < 1, "tile_overlap must be in [0, 1)")
         fail_unless(0 < self.max_size_fraction <= 1, "max_size_fraction must be in (0, 1]")
-        fail_unless(0 <= self.viewer_opacity <= 1, "viewer_opacity must be in [0, 1]")
         fail_unless(0 <= self.background_percentile <= 100, "background_percentile must be in [0, 100]")
         fail_unless(
             self.flow_iterations is None or self.flow_iterations >= 1,
             "flow_iterations must be positive or None",
         )
-        for name in ("cellpose_percentiles", "viewer_percentiles"):
+        for name in ("cellpose_percentiles", "qc_percentiles"):
             x = getattr(self, name)
             fail_unless(len(x) == 2 and 0 <= x[0] < x[1] <= 100, f"{name} must be (low, high) within [0, 100]")
         fail_unless(
@@ -601,8 +588,7 @@ def file_identity(path):
     """Path, size and modification time of a file, recorded as provenance.
 
     Reading the size and modification time is much faster than hashing a
-    multi-GB image. The editor also compares these records to detect a file that
-    has changed on disk.
+    multi-GB image.
     """
     p = Path(path).resolve()
     info = p.stat()
@@ -1022,20 +1008,14 @@ def load_rois(paths):
     return result
 
 
-def save_rois(path, rois, expected=None):
+def save_rois(path, rois):
     """Save ROIs as a vertex CSV.
 
-    expected, when given, is the file_identity recorded when the file was
-    loaded, and saving stops with an error if the file has changed since then.
     The CSV is written under a temporary name and then renamed, so the file on
     disk holds either the old or the new ROIs even if writing is interrupted.
     """
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    if expected is not None:
-        actual = file_identity(p) if p.exists() else None
-        if actual != (expected or None):
-            raise RuntimeError("The ROI file changed on disk since it was loaded; reload it first")
     records = []
     for r in rois:
         r.validate()
@@ -1058,8 +1038,8 @@ def save_rois(path, rois, expected=None):
 def convert_rois(samples, config, overwrite=False):
     """Copy each sample's ROIs to output_root/rois/<replicate>/<sample>/rois.csv.
 
-    A CSV that already exists is kept, so that edits made in napari or Fiji are
-    preserved, unless overwrite=True.
+    A CSV that already exists is kept, so that edits made in Fiji are preserved,
+    unless overwrite=True.
     """
     records = []
     for s in _bar(samples.to_dict("records"), desc="Converting ROIs", unit="image"):
@@ -1089,8 +1069,8 @@ def centerline(roi):
     """Smooth centerline through the ROI's vertices, one point per pixel of length.
 
     This is the spline ImageJ fits to a polyline (a natural cubic spline whose
-    knots are spaced by the square root of the distance between vertices), so a
-    band looks and measures the same whether it was drawn in Fiji or napari.
+    knots are spaced by the square root of the distance between vertices), so the
+    measured band follows the same curve as the line drawn in Fiji.
     """
     xy = roi.validate().xy.astype(np.float32)
     origin = np.floor(xy.min(axis=0))
@@ -1158,7 +1138,7 @@ def band_grid(roi, width_override=None):
 
 
 def write_mask(path, mask, pixel_size_um, z_step_um=None):
-    """Save a mask as a 16-bit ZYX ImageJ TIFF (0 outside, 4095 inside) that Fiji and napari open."""
+    """Save a mask as a 16-bit ZYX ImageJ TIFF (0 outside, 4095 inside) that Fiji opens."""
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     metadata = dict(axes="ZYX", unit="um")
@@ -1320,8 +1300,7 @@ def segment_sample(sample, config):
     With mask_source='compute', the mask is made from the sample's DAPI and saved
     in <mask_kind>/<replicate>/<sample>/, or read from there when reuse_cache is
     True and a saved mask exists. The other mask sources read a mask made
-    outside the pipeline, for example in Fiji, or one corrected in the napari
-    editor.
+    outside the pipeline or corrected in Fiji.
     """
     c = config.validate()
     s = dict(sample)
@@ -1633,7 +1612,7 @@ def run_sample(sample, config):
     _safe_output(s, c)
     sources = _roi_sources(s, c)
     if not sources:
-        raise ValueError(f"{s['sample_id']} has no ROIs. Convert them with convert_rois or draw them in the editor")
+        raise ValueError(f"{s['sample_id']} has no ROIs. Convert them with convert_rois or draw them in Fiji")
     rois = load_rois(sources)
     _log(
         f"=== {s['replicate']}/{s['sample_id']}: {len(rois)} side(s) "
@@ -2253,27 +2232,6 @@ def export_analysis(profiles, normalization, summary, config, folder=None):
     return folder
 
 
-def launch_editor(samples, config):
-    """Open the napari ROI and mask editor with this notebook's settings and samples."""
-    folder = Path(config.output_root) / "viewer_settings"
-    folder.mkdir(parents=True, exist_ok=True)
-    write_json(folder / "config.json", asdict(config))
-    write_json(folder / "samples.json", samples.to_dict("records"))
-    _log(
-        f"Editor: starting napari for {len(samples)} image(s). The window can take a minute "
-        "to open, and its messages appear in the kernel or terminal log."
-    )
-    return subprocess.Popen(
-        [
-            sys.executable,
-            str(Path(__file__).with_name("ihc_roi_editor.py")),
-            "--config",
-            str(folder / "config.json"),
-            "--samples",
-            str(folder / "samples.json"),
-        ]
-    )
-
 
 def qc_figure(sample, config, z=None):
     """Raw DAPI at one Z-plane, beside the same plane with the mask and ROI bands drawn on it."""
@@ -2288,7 +2246,7 @@ def qc_figure(sample, config, z=None):
     _log(f"QC figure: drawing Z={z + 1}")
     fig, ax = plt.subplots(1, 2, figsize=(18, 12), constrained_layout=True, dpi=400)
     dapi = a[z, config.dapi_channel - 1]
-    lo, hi = np.percentile(dapi, config.viewer_percentiles)
+    lo, hi = np.percentile(dapi, config.qc_percentiles)
     for axis in ax:
         axis.imshow(dapi, cmap="gray", vmin=lo, vmax=hi)
     rgba = np.zeros((*dapi.shape, 4))

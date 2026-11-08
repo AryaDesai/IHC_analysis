@@ -29,7 +29,7 @@ DRY=""
 # -rt copies folders and keeps modification times. Owners and permissions are
 # left out because the SMB share does not keep them.
 OPTS="-rt --exclude=.DS_Store $DRY"
-SKIP="--exclude=/models --exclude=/runtime --exclude=/viewer_settings"
+SKIP="--exclude=/models --exclude=/runtime"
 
 case "$1" in
 pull)

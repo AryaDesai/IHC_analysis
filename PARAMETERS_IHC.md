@@ -54,7 +54,7 @@ shows the values currently in use.
 | Setting | Default | Description |
 |---|---|---|
 | `use_cellpose` | `True` | If True, find nuclei with Cellpose. If False, threshold each Z-plane with the IsoData method. |
-| `mask_source` | `'compute'` | Where the nuclear mask comes from. 'compute' makes it here, 'existing' reads the Mask.tif in the image's own folder (for example one made in Fiji), and 'edited' reads the mask painted in the napari editor. Choices: `compute`, `existing`, `edited`. |
+| `mask_source` | `'compute'` | Where the nuclear mask comes from. 'compute' makes it here, 'existing' reads the Mask.tif in the image's own folder, and 'edited' reads a mask corrected in Fiji and saved as edited_masks/<replicate>/<sample>/Mask.tif in the output folder. Choices: `compute`, `existing`, `edited`. |
 
 ## DAPI filtering
 
@@ -100,7 +100,6 @@ shows the values currently in use.
 | Setting | Default | Description |
 |---|---|---|
 | `width_override_px` | `None` | Band width in pixels to use for every side. None uses the width saved with each ROI. |
-| `new_roi_width_px` | `100` | Starting width in pixels of a side drawn in the napari editor. |
 | `interpolation` | `'linear'` | How the band reads the image and the mask between pixel centres. Choices: `linear`, `nearest`. |
 | `boundary_mode` | `'zero'` | What to do where a band runs off the image. 'zero' counts those points as 0, 'exclude' leaves them out of the average, and 'error' stops the run. Choices: `zero`, `exclude`, `error`. |
 
@@ -172,11 +171,4 @@ shows the values currently in use.
 | `phase_colormap_range` | `(0.0, 0.85)` | Part of the colormap to use, between 0 and 1. The default skips the pale yellow end of viridis, which is hard to see on a light background. |
 | `show_individuals` | `True` | Draw each profile behind the phase average in the per-phase panels. |
 | `dpi` | `150` | Resolution of saved figures, in dots per inch. |
-
-## Viewer
-
-| Setting | Default | Description |
-|---|---|---|
-| `viewer_channel` | `1` | Channel shown first in the napari editor, counting from 1. |
-| `viewer_percentiles` | `(1.0, 99.7)` | Intensity percentiles that set the display contrast in the editor and the QC figure. |
-| `viewer_opacity` | `0.15` | Opacity of the measurement bands drawn in the editor, from 0 to 1. |
+| `qc_percentiles` | `(1.0, 99.7)` | Intensity percentiles that set the display contrast of the QC figure. |
