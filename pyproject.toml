@@ -36,7 +36,7 @@ dev = ["pytest>=9"]
 notebook = ["jupyterlab>=4"]
 
 [tool.uv]
-# A folder of scripts and a notebook, not an installable package.
+# The project is a folder of scripts and a notebook rather than an installable package.
 package = false
 # The Torch versions used on the Mac.
 constraint-dependencies = [

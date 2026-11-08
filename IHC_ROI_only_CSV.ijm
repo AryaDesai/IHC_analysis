@@ -3,8 +3,8 @@
 // file the notebook and the napari editor use, so choose the notebook's output_root.
 // Each CSV row is one clicked point: roi_id,vertex_index,x_px,y_px,width_px, in
 // image pixels counted from 0, starting at the posterior end of the side.
-// A CSV that already exists is loaded so its points can be edited. The image
-// itself is never saved.
+// If a CSV already exists, its points are loaded so they can be edited. The macro
+// does not save the image.
 
 requires("1.54");
 input = getDirectory("Folder containing the original exported TIFF images");
@@ -71,21 +71,23 @@ for (im=0;im<files.length;im++) {
             result=result+id+","+vertex+","+d2s(xs[vertex],9)+","+d2s(ys[vertex],9)+","+d2s(width,9)+"\n";
         }
     }
-    // Stop if the CSV changed since it was loaded, so edits made elsewhere are not lost.
+    // Stop if the CSV has changed since it was loaded, for example in napari, so those
+    // edits are kept.
     current="";if (File.exists(csvPath)) current=File.openAsString(csvPath);
     if (current!=original) exit("ROIs changed in another application. Reload them before saving: "+csvPath);
     File.makeDirectory(folder);
-    // Write to a temporary file and then rename it, so a half-written CSV is never left behind.
+    // The CSV is written to a temporary file and then renamed, so the file on disk holds
+    // either the old or the new ROIs even if saving is interrupted.
     temp=folder+"rois.csv.tmp";File.saveString(result,temp);
     if (File.exists(csvPath)) {
         backup=folder+"rois.csv.previous";
         if (File.exists(backup)) File.delete(backup);
         if (!File.rename(csvPath,backup)) exit("Could not back up existing CSV: "+csvPath);
     }
-    if (!File.rename(temp,csvPath)) exit("Could not publish CSV; previous version remains in rois.csv.previous");
+    if (!File.rename(temp,csvPath)) exit("Could not save the CSV. The previous version is in rois.csv.previous");
     close();
 }
-showMessage("ROI selection","Finished. Shared CSV ROIs are under:\n"+output+"rois/"+replicate);
+showMessage("ROI selection","Finished. The ROI CSVs are saved under:\n"+output+"rois/"+replicate);
 
 function loadCSVLine(text,id) {
     if (text=="") return false;

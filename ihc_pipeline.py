@@ -1,8 +1,9 @@
 """IHC gradient profiles along the PSM: masks, band measurements and phase plots.
 
-IHC_analysis.ipynb drives this module. Images are only read; masks, ROIs and
-results are written under Config.output_root. Every setting is defined once in
-Config, and parameter_table() shows the same descriptions in the notebook.
+The notebook IHC_analysis.ipynb runs the analysis through this module. The
+image files are read without being changed, and the masks, ROIs and results are
+written to Config.output_root. Each setting is defined in Config together with
+its description, which parameter_table() shows in the notebook.
 """
 
 from __future__ import annotations
@@ -29,8 +30,8 @@ from scipy import ndimage as ndi
 from scipy.signal import savgol_filter
 from skimage.filters import threshold_isodata
 
-# Timestamped progress messages and bars, which do not affect any result.
-# Set ihc.PROGRESS = False in the notebook to turn them off.
+# Timestamped progress messages and progress bars. Setting ihc.PROGRESS = False
+# in the notebook turns them off.
 PROGRESS = True
 
 
@@ -46,7 +47,7 @@ def _log(message):
 
 
 def _bar(iterable=None, desc="", total=None, disable=False, **kwargs):
-    """Progress bar around an iterable; it shows nothing when PROGRESS is False."""
+    """Progress bar around an iterable, hidden when PROGRESS is False."""
     from tqdm.auto import tqdm
 
     return tqdm(
@@ -77,13 +78,13 @@ def setting(default, group, description, choices=None):
 class Config:
     experimental_data: str | Path = setting(
         "", "Files",
-        "Folder that contains the replicate folders (N_1, N_2, ...). A folder name may continue"
-        " after the number, as in N_1_oct_6.",
+        "Folder that contains the replicate folders (N_1, N_2, ...). The folder names can "
+        "have more text after the number, as in N_1_oct_6.",
     )
     output_root: str | Path = setting(
         "", "Files",
-        "Folder where masks, ROIs, measurements and figures are saved. It must be outside the "
-        "image folders.",
+        "Folder where masks, ROIs, measurements and figures are saved. It has to be "
+        "separate from the image folders, and a run stops if it lies inside one.",
     )
     replicates: tuple = setting(
         (), "Files",
@@ -92,22 +93,23 @@ class Config:
     )
     image_glob: str = setting(
         "*.tiff", "Files",
-        "Filename pattern of the exported multichannel TIFFs. Files with too few channels are "
-        "skipped.",
+        "Filename pattern of the exported multichannel TIFFs. TIFFs with fewer channels "
+        "than the settings need are skipped.",
     )
     include_nd2: bool = setting(
         True, "Files",
-        "Also look for ND2 files. If a position was also exported as a TIFF, the TIFF is used.",
+        "Also look for ND2 files. When a position has also been exported as a TIFF, the "
+        "TIFF is used for that position.",
     )
     denoised_tokens: tuple = setting(
         (" - Denoised", "_denoised"), "Files",
-        "Text in a filename that marks an NIS-denoised export. Removing it gives the original "
-        "image's name.",
+        "Text that marks a filename as an NIS-denoised export. The original image has the "
+        "same name with this text removed.",
     )
     nis_preference: str = setting(
         "nd2", "Files",
-        "Which denoised export supplies the DAPI when a sample has both an ND2 and a TIFF "
-        "version. The other is used if the preferred one is missing.",
+        "The denoised export that supplies the DAPI when a sample has both an ND2 and a "
+        "TIFF version. If the preferred export is missing, the other one is used.",
         ("nd2", "tiff"),
     )
     phase_files: dict = setting(
@@ -117,18 +119,19 @@ class Config:
     )
     phase_overrides: dict = setting(
         {}, "Phases",
-        "Phases set by hand, for example {'N_2/triple_ihc_014_P1': '2'}. These replace the "
-        "phase table's entry.",
+        "Phases set by hand, for example {'N_2/triple_ihc_014_P1': '2'}, which take the "
+        "place of the entries in the phase table.",
     )
     dapi_channel: int = setting(
         1, "Channels",
-        "DAPI channel in the original image, counting from 1. A DAPI-only NIS export uses its "
-        "single channel.",
+        "DAPI channel in the original image, counting from 1. An NIS export that contains "
+        "only DAPI is read from its single channel.",
     )
     protein_channels: dict = setting(
         {"Her7-Venus": 2, "pMEK": 3, "ppERK": 4}, "Channels",
-        "Protein names and their channels in the original image, counting from 1. Proteins are "
-        "always measured from the original image, not from an NIS export.",
+        "Protein names and their channels in the original image, counting from 1. The "
+        "protein signal is read from the original image, and NIS exports are used only for "
+        "the DAPI.",
     )
     pixel_size_um: float | None = setting(
         None, "Calibration",
@@ -140,9 +143,9 @@ class Config:
     )
     use_ai_denoise: bool = setting(
         True, "DAPI",
-        "If True, segment the DAPI of the sample's NIS-denoised export, which every sample "
-        "then needs. If False, segment the raw DAPI after a median filter, background "
-        "subtraction and CLAHE.",
+        "If True, the DAPI is taken from the sample's NIS-denoised export, so every sample "
+        "needs one. If False, the raw DAPI is median filtered, background subtracted and "
+        "contrast enhanced with CLAHE before segmentation.",
     )
     use_cellpose: bool = setting(
         True, "Mask",
@@ -163,8 +166,9 @@ class Config:
     )
     background_size_px: int = setting(
         101, "DAPI filtering",
-        "Width in pixels of the square used to estimate the smooth background under the nuclei,"
-        " which is then subtracted. It should be wider than a nucleus. 0 skips this step.",
+        "Width in pixels of the square used to estimate the smooth background under the "
+        "nuclei, which is then subtracted. The square should be wider than a nucleus, and "
+        "0 skips this step.",
     )
     clahe_window_px: int = setting(
         31, "Contrast",
@@ -181,8 +185,9 @@ class Config:
     )
     cellpose_diameter_px: float | None = setting(
         None, "Cellpose",
-        "Typical nuclear diameter in pixels. Cellpose rescales the image so nuclei match its "
-        "training size. None keeps the image at its own scale.",
+        "Typical nuclear diameter in pixels. When it is set, Cellpose rescales the image "
+        "so the nuclei match the size it was trained on. None leaves the image at its own "
+        "scale.",
     )
     cellpose_percentiles: tuple = setting(
         (1.0, 99.0), "Cellpose",
@@ -216,7 +221,8 @@ class Config:
     )
     augment: bool = setting(
         False, "Cellpose",
-        "Also segment flipped copies of each tile and average the results. This is slower.",
+        "Also segment flipped copies of each tile and average the results, which takes "
+        "longer.",
     )
     batch_size: int = setting(
         32, "Compute",
@@ -231,8 +237,9 @@ class Config:
     )
     image_workers: int = setting(
         1, "Compute",
-        "Number of samples measured in parallel, each in its own process. Masks are made "
-        "beforehand, one sample at a time.",
+        "Number of samples measured in parallel, each in its own process. The masks are "
+        "made beforehand, one sample at a time, so that only one copy of the Cellpose "
+        "model is on the GPU.",
     )
     threads_per_worker: int = setting(
         8, "Compute",
@@ -240,9 +247,10 @@ class Config:
     )
     reuse_cache: bool = setting(
         True, "Compute",
-        "Use a sample's saved mask if there is one, without checking which settings made it. "
-        "Set to False to make masks again. Measurements are always redone; to reload saved "
-        "ones, use RELOAD_SAVED in the notebook.",
+        "Load a sample's saved mask when one exists, instead of making it again. The "
+        "settings and code that made the saved mask are not checked, so set this to False "
+        "after changing either. Measurements are made again on every run, and RELOAD_SAVED "
+        "in the notebook loads the saved ones instead.",
     )
     export_csv: bool = setting(
         False, "Files",
@@ -295,8 +303,8 @@ class Config:
     )
     min_mask_fraction: float = setting(
         0.05, "Measurement",
-        "Smallest fraction of the band a compartment must cover for its mean to be reported. "
-        "Below this the mean is left blank (NaN).",
+        "Smallest fraction of the band a compartment must cover for its mean to be "
+        "reported. Where the coverage is lower, the mean is left empty (NaN).",
     )
     protein_median_size: int = setting(
         3, "Protein filtering",
@@ -317,9 +325,9 @@ class Config:
     )
     mask_cap: float | None = setting(
         4095.0, "Protein filtering",
-        "Protein intensities above this value are clipped before the nuclear and cytoplasmic "
-        "measurements. 4095 is the 12-bit camera maximum, and None turns clipping off. The "
-        "whole-band measurement is never clipped.",
+        "Protein intensities above this value are clipped before the nuclear and "
+        "cytoplasmic measurements. 4095 is the maximum of the 12-bit camera, and None "
+        "turns clipping off. The whole-band measurement uses the unclipped values.",
     )
     exclusions_csv: str = setting(
         "", "Exclusions",
@@ -328,7 +336,8 @@ class Config:
     )
     analysis_method: str = setting(
         "block_mip", "Analysis",
-        "Z method used for the profiles and phase plots. It must be one of methods.",
+        "Z method used for the profiles and phase plots, which has to be one of those "
+        "listed in methods.",
     )
     z_average: str = setting(
         "pool", "Analysis",
@@ -349,8 +358,9 @@ class Config:
     )
     background_subtract: bool = setting(
         True, "Normalization",
-        "Subtract a baseline from each embryo's profiles. The baseline is a low percentile of "
-        "the profiles themselves, not a measured optical background.",
+        "Subtract a baseline from each embryo's profiles. The baseline is a low percentile "
+        "of the profiles themselves rather than a separate measurement of the optical "
+        "background.",
     )
     background_percentile: float = setting(
         5.0, "Normalization",
@@ -404,18 +414,18 @@ class Config:
     )
     phase_labels: tuple = setting(
         ("1", "2", "3"), "Phases",
-        "Phase labels to summarise and plot, in order. Samples with other labels, or none, "
-        "still appear among the individual profiles.",
+        "Phase labels to summarise and plot, in order. Samples with other labels or no "
+        "label are shown with the individual profiles and left out of the phase averages.",
     )
     phase_compartments: dict = setting(
         {"Her7-Venus": "nuclear", "ppERK": "nuclear", "pMEK": "cytoplasmic"}, "Phases",
-        "Compartment shown for each channel in the phase plots. All compartments are measured "
-        "regardless.",
+        "Compartment shown for each channel in the phase plots. Every compartment is "
+        "measured, so this setting only changes what is plotted.",
     )
     smooth_average: bool = setting(
         True, "Plot",
-        "Smooth the plotted average with a Savitzky–Golay filter. Saved statistics and error "
-        "bands are not smoothed.",
+        "Smooth the plotted average with a Savitzky–Golay filter. The saved statistics and "
+        "the error bands are calculated from the unsmoothed profiles.",
     )
     savgol_window_um: float = setting(60.0, "Plot", "Width in µm of the smoothing window.")
     savgol_order: int = setting(1, "Plot", "Degree of the smoothing polynomial.")
@@ -429,7 +439,8 @@ class Config:
     )
     phase_colormap: str = setting(
         "viridis", "Plot",
-        "Matplotlib colormap for the phases, which take evenly spaced colours from it.",
+        "Matplotlib colormap for the phases, which are given evenly spaced colours from "
+        "it.",
     )
     phase_colormap_range: tuple = setting(
         (0.0, 0.85), "Plot",
@@ -589,22 +600,44 @@ def write_json(path, data):
 def file_identity(path):
     """Path, size and modification time of a file, recorded as provenance.
 
-    Reading the size and time is instant, whereas hashing a multi-GB image is
-    not. The editor also compares identities to notice a file changed on disk.
+    Reading the size and modification time is much faster than hashing a
+    multi-GB image. The editor also compares these records to detect a file that
+    has changed on disk.
     """
     p = Path(path).resolve()
     info = p.stat()
     return dict(path=str(p), bytes=info.st_size, modified_ns=info.st_mtime_ns)
 
 
+def git_state(folder=None):
+    """The git commit the code is at, and the tracked files changed since that commit.
+
+    Both are None when git is not installed or the folder is not a git clone.
+    """
+    folder = Path(folder or Path(__file__).parent)
+
+    def git(*args):
+        return subprocess.run(
+            ["git", "-C", str(folder), *args], capture_output=True, text=True, check=True, timeout=10
+        ).stdout
+
+    try:
+        commit = git("rev-parse", "HEAD").strip()
+        changed = [line[3:] for line in git("status", "--porcelain", "--untracked-files=no").splitlines()]
+    except (OSError, subprocess.SubprocessError):
+        return dict(git_commit=None, git_uncommitted=None)
+    return dict(git_commit=commit, git_uncommitted=changed)
+
+
 def version_info():
-    """Versions of the main packages, plus a hash of this file's code."""
+    """Versions of the main packages, the git commit of the code and a hash of this file."""
     result = {}
     for name in ("numpy", "pandas", "scipy", "scikit-image", "tifffile", "roifile", "torch", "cellpose"):
         try:
             result[name] = importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:
             result[name] = None
+    result.update(git_state())
     result["pipeline_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     return result
 
@@ -992,10 +1025,10 @@ def load_rois(paths):
 def save_rois(path, rois, expected=None):
     """Save ROIs as a vertex CSV.
 
-    If expected is given (a file_identity from when the file was loaded), saving
-    stops when the file has changed since, so another editor's work is not lost.
-    The file is written to a temporary name and then renamed, so a crash cannot
-    leave half a file.
+    expected, when given, is the file_identity recorded when the file was
+    loaded, and saving stops with an error if the file has changed since then.
+    The CSV is written under a temporary name and then renamed, so the file on
+    disk holds either the old or the new ROIs even if writing is interrupted.
     """
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -1025,7 +1058,8 @@ def save_rois(path, rois, expected=None):
 def convert_rois(samples, config, overwrite=False):
     """Copy each sample's ROIs to output_root/rois/<replicate>/<sample>/rois.csv.
 
-    A CSV that already exists is kept unless overwrite=True, so edits survive.
+    A CSV that already exists is kept, so that edits made in napari or Fiji are
+    preserved, unless overwrite=True.
     """
     records = []
     for s in _bar(samples.to_dict("records"), desc="Converting ROIs", unit="image"):
@@ -1258,7 +1292,7 @@ def mask_kind(c):
     """Name of the folder for computed masks, e.g. 'masks_cellpose_denoised'.
 
     Each combination of segmentation method and DAPI source has its own folder,
-    so changing either setting never overwrites masks made the other way.
+    so masks made with different settings are stored separately.
     """
     method = "cellpose" if c.use_cellpose else "threshold"
     source = "denoised" if c.use_ai_denoise else "raw"
@@ -1283,9 +1317,11 @@ MASK_SETTINGS = (
 def segment_sample(sample, config):
     """Return one sample's nuclear mask (boolean ZYX), its calibration and its provenance.
 
-    With mask_source='compute' the mask is made from the sample's DAPI and saved
-    in <mask_kind>/<replicate>/<sample>/ (see mask_kind), or read from there when reuse_cache is True
-    and it already exists. The other mask sources read a mask made elsewhere.
+    With mask_source='compute', the mask is made from the sample's DAPI and saved
+    in <mask_kind>/<replicate>/<sample>/, or read from there when reuse_cache is
+    True and a saved mask exists. The other mask sources read a mask made
+    outside the pipeline, for example in Fiji, or one corrected in the napari
+    editor.
     """
     c = config.validate()
     s = dict(sample)
@@ -1454,8 +1490,8 @@ def _band_sampler(grid, h, w, order):
         rn = np.clip(np.floor(r + 0.5), 0, h - 1).astype(np.int64)
         cn = np.clip(np.floor(c + 0.5), 0, w - 1).astype(np.int64)
         return (rn * w + cn)[:, None], inside[:, None].astype(float)
-    # Top-left neighbour. Clipping keeps the +1 neighbours inside the image; at the
-    # edge their weight is 0 anyway.
+    # Top-left neighbour. Clipping keeps the +1 neighbours inside the image. At the
+    # edge their weight is 0, so the clipped index does not change the result.
     r0 = np.clip(np.floor(r), 0, max(h - 2, 0)).astype(np.int64)
     c0 = np.clip(np.floor(c), 0, max(w - 2, 0)).astype(np.int64)
     fr, fc = r - r0, c - c0
@@ -1512,7 +1548,7 @@ def measure_arrays(channels, mask, rois, cal, config):
         if comp != "all" and c.mask_cap is not None:
             values = np.minimum(channels, c.mask_cap)
         masked = values * m  # (channel, z, y, x)
-        # Project whole frames once; every side then samples the projection.
+        # Each frame is projected once, and every side then samples the projection.
         projections = {
             (method, z0): (masked[:, z0:z1].max(axis=1), m[z0:z1].max(axis=0))
             for method in c.methods
@@ -1827,7 +1863,7 @@ def side_profiles(measurements, config):
     # Back to plain text. This table is much smaller, and text joins like
     # embryo_id + "/" + side need it.
     t = t.astype({k: str for k in LABELS if k in t and k != "phase"})
-    t["phase"] = t.phase.astype(object).fillna("").astype(str)  # missing phase -> ""
+    t["phase"] = t.phase.astype(object).fillna("").astype(str)  # a missing phase becomes ""
     t["mask_fraction"] = t.mask_weight.div(t.band_weight.where(t.band_weight > 0)).fillna(0)
     t["raw_value"] = (
         t.masked_sum.div(t.mask_weight.where(t.mask_weight > 0)).where(
@@ -1893,7 +1929,7 @@ def side_profiles(measurements, config):
         day = ["imaging_day", "channel", "compartment"]
         lo, hi = c.day_reference_um
         factor = t[t.distance_um.between(lo, hi)].groupby(day).value.median()
-        factor = factor.where(factor > 0).rename("day_factor")  # <= 0 cannot scale
+        factor = factor.where(factor > 0).rename("day_factor")  # a factor of 0 or less cannot be used for scaling
         t = t.join(factor, on=day)
         t["value"] = t.value / t.day_factor
         t.loc[t.day_factor.isna(), "normalization_status"] = "no day factor: reference median <= 0"
