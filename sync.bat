@@ -26,7 +26,7 @@ if /I "%LOCAL%"=="%SERVER%" (
 set "DRY="
 if /I "%~2"=="--dry-run" set "DRY=/L"
 set "OPTS=/MT:16 /NP /NDL /NJH %DRY%"
-set "SKIP=/XD models runtime viewer_settings"
+set "SKIP=/XD models runtime"
 
 if /I "%~1"=="pull" goto pull
 if /I "%~1"=="push" goto push

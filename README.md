@@ -14,8 +14,7 @@ The repository contains:
 
 - `IHC_analysis.ipynb`, the notebook used to run the analysis.
 - `ihc_pipeline.py`, which contains the image processing and analysis code.
-- `ihc_roi_editor.py`, a napari window for drawing bands and correcting masks.
-- `IHC_ROI_only_CSV.ijm`, a Fiji macro for drawing bands in the same file format.
+- `IHC_ROI_only.ijm`, a Fiji macro for drawing the bands.
 - `PARAMETERS_IHC.md`, which describes every setting.
 - `sync.bat` and `sync.sh`, which copy data and results between a computer and
   the lab server.
@@ -71,8 +70,8 @@ uv run --locked --group notebook jupyter lab IHC_analysis.ipynb
    ROIs and its phase. A sample is a single embryo image, which is either an
    exported TIFF or one position in an ND2 file. When a position has been
    exported as a TIFF, the pipeline uses the TIFF.
-3. Convert any ImageJ ROI ZIPs to CSV, and draw bands in napari or Fiji for
-   samples that have none.
+3. Draw bands in Fiji for the samples that have none, and convert any older
+   ImageJ ROI ZIPs to CSV. Then run the inventory cell again.
 4. Measure a single sample and check its QC figure, then measure the remaining
    samples.
 5. Run the profile and phase cells.
@@ -106,8 +105,11 @@ filtering settings, or the code itself, have changed since the mask was saved,
 so after such a change `reuse_cache=False` makes new masks.
 
 Masks can also come from other sources. `mask_source='existing'` loads a
-`Mask.tif` from the folder named after the image, such as a mask made in Fiji,
-and `mask_source='edited'` loads a mask that was corrected in the napari editor.
+`Mask.tif` from the folder named after the image, and `mask_source='edited'`
+loads a mask that was corrected in Fiji. To correct a mask, open the computed
+`Mask.tif` in Fiji, paint the corrections with 4095 for nucleus and 0 for
+background, and save it as `edited_masks/<replicate>/<sample>/Mask.tif` in the
+output folder.
 
 The cytoplasmic mask covers all pixels outside the nuclei. Masks are saved as
 16-bit ImageJ TIFFs, with 0 outside and 4095 inside, and include the pixel size
@@ -115,7 +117,17 @@ so that Fiji opens them at the correct scale.
 
 ## Bands (ROIs)
 
-The bands of each sample are stored in one CSV file:
+The bands are drawn in Fiji with `IHC_ROI_only.ijm`. The macro asks whether the
+images are ND2 files or exported TIFFs. For ND2 files, it opens each position
+separately and names it `<file>_P<position>`, which is the name the notebook
+gives that sample, and it skips the NIS-denoised exports. For each image, it
+asks whether the embryo is mounted laterally (one side) or flat (two sides),
+and then waits while each side is drawn as a polyline from posterior to
+anterior. With "Redo images that already have ROIs" checked, the saved lines
+are shown and can be edited.
+
+The bands of each sample are stored in one CSV file in the output folder,
+`rois/<replicate>/<sample>/rois.csv`:
 
 ```csv
 roi_id,vertex_index,x_px,y_px,width_px
@@ -127,14 +139,12 @@ Each row is a point that was clicked when the band was drawn, given in image
 pixels counted from 0. The first point of each side is at the posterior end.
 The centre line of the band is a smooth spline through these points, the same
 spline ImageJ uses for polylines, and `width_px` sets the width of the band.
-Fiji and napari both read and write this format and draw the band from the same
-spline, so a band looks the same in either program. ImageJ ROI ZIPs that are
-converted to this format are saved in `rois/` in the output folder, and the ZIP
-files themselves are kept unchanged.
+ImageJ ROI ZIPs from the earlier macros are converted to this format by the
+notebook and saved in `rois/` as well, and the ZIP files themselves are kept
+unchanged.
 
-Before saving, the napari editor checks whether the ROI file has changed on disk
-since it was opened. This stops one editor window from overwriting changes that
-were saved from another.
+Before saving, the macro checks whether the CSV has changed on disk since the
+image was opened, and it keeps the previous version as `rois.csv.previous`.
 
 ## Measurements
 
@@ -205,7 +215,7 @@ exclusions CSV (`IHC_exclusions.csv`) with the columns
 - `masks_<method>_<source>/` holds the computed masks, the DAPI image that was
   segmented, the Cellpose labels and `mask.json`, which records the settings
   and input files.
-- `edited_masks/` holds masks corrected in napari.
+- `edited_masks/` holds masks corrected in Fiji.
 - `rois/` holds the band CSVs.
 - `measurements/` holds a `profiles.parquet` and a `measurement.json` for each
   sample.
@@ -247,9 +257,8 @@ server and lists any code changes that have not been committed. Adding
 The raw data is mirrored, which means the local copy is made to match the
 server, and local raw files that are not on the server are deleted. Results are
 copied in both directions without deleting anything, and a file is replaced
-only when the incoming copy is newer. The Cellpose models, the
-matplotlib cache and the napari settings belong to each computer and are not
-copied.
+only when the incoming copy is newer. The Cellpose models and the matplotlib
+cache belong to each computer and are not copied.
 
 A session usually starts with `sync pull` and ends with `sync push`. ROIs and
 masks should be edited on one computer at a time. If the same file is edited on
@@ -277,7 +286,7 @@ the repository is cleared.
 The tests use small synthetic images and run on computers without a GPU:
 
 ```sh
-uv run --locked -m pytest -q -p no:napari test_ihc_pipeline.py
+uv run --locked -m pytest -q test_ihc_pipeline.py
 ```
 
 ## References

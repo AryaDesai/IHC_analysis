@@ -32,17 +32,13 @@ def cfg(tmp_path, **changes):
     return ihc.Config(**base)
 
 
-def test_roi_roundtrip_and_concurrent_edit(tmp_path):
+def test_roi_roundtrip(tmp_path):
     r = ihc.ROI("side0", np.array([[2.25, 3.5], [8.2, 4.1], [12.6, 9.0]]), 12)
     path = tmp_path / "rois.csv"
     ihc.save_rois(path, [r])
-    before = ihc.file_identity(path)
     loaded = ihc.load_rois(path)[0]
     assert np.allclose(loaded.xy, r.xy) and loaded.width_px == 12
     assert np.allclose(ihc.band_grid(loaded)[0], ihc.band_grid(r)[0])
-    ihc.save_rois(path, [replace(r, width_px=20)])
-    with pytest.raises(RuntimeError):
-        ihc.save_rois(path, [r], before)
 
 
 def test_concentration_is_not_occupancy(tmp_path):
