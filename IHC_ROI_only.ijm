@@ -18,10 +18,7 @@ output = getDirectory("Output folder of the notebook (ihc_results)");
 replicate = "N_1";
 parts = split(replace(input, "\\", "/"), "/");
 for (p = 0; p < parts.length; p++) {
-	if (matches(parts[p], "N_[0-9]+.*")) {
-		fields = split(parts[p], "_");
-		replicate = "N_" + fields[1];
-	}
+	if (matches(parts[p], "N_[0-9]+.*")) replicate = replace(parts[p], "^(N_[0-9]+).*", "$1");
 }
 
 Dialog.create("IHC ROI settings");
@@ -82,13 +79,13 @@ for (im = 0; im < total; im++) {
 	if (File.exists(csvPath)) original = File.openAsString(csvPath);
 
 	if (series[im] > 0) {
-		run("Bio-Formats Importer", "open=[" + paths[im] + "] color_mode=Composite view=Hyperstack stack_order=XYCZT series_" + series[im]);
+		run("Bio-Formats Importer", "open=[" + paths[im] + "] color_mode=Colorized view=Hyperstack stack_order=XYCZT series_" + series[im]);
 	} else {
 		open(paths[im]);
 	}
 	traceID = getImageID();
 	Stack.getDimensions(imageWidth, imageHeight, channels, slices, frames);
-	if (channels > 1) Stack.setDisplayMode("composite");
+	if (channels > 1) Stack.setDisplayMode("color"); // one channel at a time, scrolled with the C slider
 	Stack.setSlice(floor(slices / 2) + 1);
 	for (ch = 1; ch <= channels; ch++) {
 		Stack.setChannel(ch);
