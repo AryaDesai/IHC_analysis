@@ -1,4 +1,4 @@
-"""Tests of the measurements, file formats and analysis steps. None needs a GPU."""
+"""Tests of the measurements, file formats and analysis steps, which run without a GPU."""
 
 from dataclasses import replace
 import json
@@ -187,7 +187,7 @@ def test_nis_preference_keeps_original_and_position(tmp_path, monkeypatch, prefe
     assert samples.loc["example_P1", "raw_path"] == str(raw_nd2)
     assert samples.loc["example_P1", "nis_path"] == str(nis_nd2)
     p2 = samples.loc["example_P2"]
-    assert p2.raw_path == str(raw_tiff)  # proteins come from the original image
+    assert p2.raw_path == str(raw_tiff)  # the proteins are read from the original image
     assert p2.nis_path == str(nis_nd2 if preference == "nd2" else nis_tiff)
     assert p2.nis_position == (2 if preference == "nd2" else 1)
 
@@ -240,8 +240,8 @@ def test_side_choice_and_phase_counts(tmp_path):
 
 
 def test_day_normalization_removes_day_gain(tmp_path):
-    # One replicate imaged on two days with the same profile shape; the second day
-    # has twice the gain and a different floor. Days, not replicates, get factors.
+    # One replicate imaged on two days with the same profile shape. The second day
+    # has twice the gain and a different floor, and each day gets its own factor.
     shape = np.array([0.0, 1, 3, 6, 4, 2, 1, 0])
     records = []
     for day, gain, floor in [("2026-10-06", 1.0, 50.0), ("2026-10-08", 2.0, 60.0)]:
@@ -312,11 +312,11 @@ def test_measurement_records_its_settings(tmp_path):
     ihc.run_sample(s, replace(c, width_override_px=12))
     settings = json.loads(metadata.read_text())["provenance"]["settings"]
     assert settings["width_override_px"] == 12
-    assert set(settings) == set(ihc.MEASURE_SETTINGS)  # analysis and plot settings are not included
+    assert set(settings) == set(ihc.MEASURE_SETTINGS)  # the analysis and plot settings are left out
 
 
 def test_band_sampler_matches_map_coordinates():
-    """Including a band that runs off the image edge, for both interpolation orders."""
+    """Check the band sampler with both interpolation orders, using a band that runs off the image."""
     from scipy import ndimage as ndi
 
     image = np.random.default_rng(0).random((20, 30)).astype(np.float32)
@@ -398,3 +398,18 @@ def test_mask_folders_are_separate_for_each_method(tmp_path):
     ihc.segment_sample(s, c)
     assert (ihc.sample_dir(c, s, "masks_threshold_raw") / "Mask.tif").exists()
     assert ihc.mask_kind(replace(c, use_cellpose=True, use_ai_denoise=True)) == "masks_cellpose_denoised"
+
+
+def test_git_state_records_commit_and_changed_files(tmp_path):
+    import subprocess
+    def git(*args):
+        subprocess.run(["git", "-C", str(tmp_path), *args], check=True, capture_output=True)
+    git("init", "-q")
+    (tmp_path / "code.py").write_text("a = 1\n")
+    git("add", "code.py")
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "start")
+    assert ihc.git_state(tmp_path)["git_uncommitted"] == []
+    (tmp_path / "code.py").write_text("a = 2\n")
+    state = ihc.git_state(tmp_path)
+    assert len(state["git_commit"]) == 40 and state["git_uncommitted"] == ["code.py"]
+    assert ihc.git_state(tmp_path / "not_a_repo") == dict(git_commit=None, git_uncommitted=None)
