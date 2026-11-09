@@ -10,7 +10,7 @@
 # anything, and a file is replaced only when the incoming copy is newer.
 
 set -e
-SERVER="${SYNC_SERVER:-/Volumes/fsmresfiles/Basic_Sciences/CDB/OzbudakLab/Arya CDB/MEK_oscillation_project}"
+SERVER="${SYNC_SERVER:-/Volumes/Arya CDB/MEK_oscillation_project}"
 RESULTS=analysis_scripts/ihc_results
 HERE=$(cd "$(dirname "$0")" && pwd -P)
 LOCAL=$(dirname "$HERE")
