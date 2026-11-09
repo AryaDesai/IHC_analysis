@@ -38,7 +38,7 @@ DRY=""
 # line with the amount copied, the speed and the percentage done, and
 # --no-inc-recursive lists all files before copying so that the percentage is
 # out of the full total.
-OPTS="-rt --info=progress2 --no-inc-recursive --exclude=.DS_Store $DRY"
+OPTS="-rt --info=progress2 --exclude=.DS_Store $DRY"
 SKIP="--exclude=/models --exclude=/runtime"
 
 case "$1" in
