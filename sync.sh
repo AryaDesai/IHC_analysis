@@ -15,6 +15,13 @@ RESULTS=analysis_scripts/ihc_results
 HERE=$(cd "$(dirname "$0")" && pwd -P)
 LOCAL=$(dirname "$HERE")
 
+# The rsync from Homebrew is used because the one that comes with macOS
+# (openrsync) cannot show the overall progress of a copy.
+RSYNC=/opt/homebrew/bin/rsync
+if [ ! -x "$RSYNC" ]; then
+    echo "Homebrew rsync was not found at $RSYNC. Install it with: brew install rsync"
+    exit 1
+fi
 if [ ! -d "$SERVER" ]; then
     echo "Cannot reach the server folder: $SERVER (is the share mounted?)"
     exit 1
@@ -27,23 +34,26 @@ fi
 DRY=""
 [ "$2" = "--dry-run" ] && DRY="--dry-run --itemize-changes"
 # -rt copies folders and keeps modification times. Owners and permissions are
-# left out because the SMB share does not keep them.
-OPTS="-rt --exclude=.DS_Store $DRY"
+# left out because the SMB share does not keep them. --info=progress2 prints one
+# line with the amount copied, the speed and the percentage done, and
+# --no-inc-recursive lists all files before copying so that the percentage is
+# out of the full total.
+OPTS="-rt --info=progress2 --no-inc-recursive --exclude=.DS_Store $DRY"
 SKIP="--exclude=/models --exclude=/runtime"
 
 case "$1" in
 pull)
     [ -z "$DRY" ] && git -C "$HERE" pull --ff-only
     echo "Raw data:"
-    rsync $OPTS --delete --exclude=/analysis_scripts --exclude='/analysis_scripts_backup_*' \
+    "$RSYNC" $OPTS --delete --exclude=/analysis_scripts --exclude='/analysis_scripts_backup_*' \
         --exclude=.venv --exclude='*.ims' "$SERVER/" "$LOCAL/"
     echo "Results:"
     mkdir -p "$LOCAL/$RESULTS"
-    rsync $OPTS --update $SKIP "$SERVER/$RESULTS/" "$LOCAL/$RESULTS/"
+    "$RSYNC" $OPTS --update $SKIP "$SERVER/$RESULTS/" "$LOCAL/$RESULTS/"
     ;;
 push)
     echo "Results:"
-    rsync $OPTS --update $SKIP "$LOCAL/$RESULTS/" "$SERVER/$RESULTS/"
+    "$RSYNC" $OPTS --update $SKIP "$LOCAL/$RESULTS/" "$SERVER/$RESULTS/"
     echo "Code changes not yet committed:"
     git -C "$HERE" status --short
     ;;
