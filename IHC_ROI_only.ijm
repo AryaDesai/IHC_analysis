@@ -9,6 +9,9 @@
 // The images can be ND2 files or exported TIFFs. Each position of an ND2 file is
 // opened separately and named <file>_P<position>, the name the notebook gives that
 // sample. NIS-denoised exports are skipped, and the images themselves are not saved.
+//
+// A side can be left out with 'Skip this side'. The sides that are drawn keep their
+// ids, so skipping the first side of a flat sample saves only side1.
 
 requires("1.54");
 input = getDirectory("Folder with the images (for ND2 files, the replicate folder)");
@@ -110,6 +113,7 @@ for (im = 0; im < total; im++) {
 	}
 
 	result = "roi_id,vertex_index,x_px,y_px,width_px\n";
+	drawn = 0;
 	for (side = 0; side < sides; side++) {
 		id = "side" + side;
 		selectImage(traceID);
@@ -119,14 +123,16 @@ for (im = 0; im < total; im++) {
 		setTool("polyline");
 		message = "Image " + (im + 1) + " of " + total + ": " + sample + "\nLine " + (side + 1) + " of " + sides + "\n \n";
 		if (loaded) message = message + "The saved line is shown and can be edited.\n";
-		message = message + "Draw the line from posterior to anterior, then click OK.\nThe line applies to every channel and Z-plane.";
+		message = message + "Draw the line from posterior to anterior, then click OK.\nThe line applies to every channel and Z-plane.\n \nTick 'Skip this side' to leave this side out.";
 		beep();
-		waitForUser(message);
+		skip = askSide(message);
 		selectImage(traceID);
-		while (selectionType() != 5 && selectionType() != 6) {
-			waitForUser("No line was found on " + sample + ".\nDraw a line from posterior to anterior, then click OK.");
+		while (!skip && selectionType() != 5 && selectionType() != 6) {
+			skip = askSide("No line was found on " + sample + ".\nDraw a line from posterior to anterior, then click OK,\nor tick 'Skip this side'.");
 			selectImage(traceID);
 		}
+		if (skip) continue;
+		drawn++;
 		getSelectionCoordinates(xs, ys);
 		width = Roi.getStrokeWidth;
 		if (width < 1) width = lineWidth;
@@ -136,6 +142,8 @@ for (im = 0; im < total; im++) {
 	}
 	selectImage(traceID);
 	close();
+	// With every side skipped there is nothing to save, and a saved CSV is left as it was.
+	if (drawn == 0) continue;
 
 	// Stop if the CSV was changed by another program while this image was open, so
 	// that those changes are kept.
@@ -155,6 +163,16 @@ for (im = 0; im < total; im++) {
 	if (!File.rename(temp, csvPath)) exit("Could not save the CSV of " + sample + ". The previous version is in rois.csv.previous");
 }
 showMessage("ROI selection", "Finished. The ROI CSVs are saved under:\n" + output + "rois/" + replicate);
+
+// Show the message in a dialog that leaves the image usable for drawing, and
+// return true when 'Skip this side' was ticked.
+function askSide(message) {
+	Dialog.createNonBlocking("Draw the line");
+	Dialog.addMessage(message);
+	Dialog.addCheckbox("Skip this side", false);
+	Dialog.show();
+	return Dialog.getCheckbox();
+}
 
 // Draw the saved line with this id from a rois.csv text as the current selection.
 // Returns false when the CSV has no such line.
