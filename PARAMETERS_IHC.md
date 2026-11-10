@@ -139,6 +139,7 @@ shows the values currently in use.
 | `z_average` | `'pool'` | How the Z-planes or blocks of a side are combined. 'pool' weights each by its mask coverage, 'mean' weights them equally, and 'median' takes the middle value. Choices: `pool`, `mean`, `median`. |
 | `combine_sides` | `False` | If True, combine an embryo's sides into one profile. If False, each side is its own profile. |
 | `side_average` | `'mean'` | How sides are combined when combine_sides is True. 'mean' weights sides equally and 'pool' weights them by mask coverage. Choices: `mean`, `pool`. |
+| `align_profiles` | `0` | End of the band that profiles are aligned to and distances are measured from. 0 aligns the posterior ends (distance runs posterior to anterior) and 1 aligns the anterior ends, the last point of each band (distance runs anterior to posterior). Exclusions and day_reference_um are always measured from the posterior end. Choices: `0`, `1`. |
 
 ## Normalization
 

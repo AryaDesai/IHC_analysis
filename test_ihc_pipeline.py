@@ -409,3 +409,30 @@ def test_git_state_records_commit_and_changed_files(tmp_path):
     state = ihc.git_state(tmp_path)
     assert len(state["git_commit"]) == 40 and state["git_uncommitted"] == ["code.py"]
     assert ihc.git_state(tmp_path / "not_a_repo") == dict(git_commit=None, git_uncommitted=None)
+
+
+def test_anterior_alignment_lines_up_band_ends(tmp_path):
+    # Two sides of different lengths with a peak 1 µm from their anterior ends.
+    records = []
+    for side, length in [("side0", 5), ("side1", 8)]:
+        for x in range(length):
+            value = 100.0 if x == length - 2 else 10.0
+            records.append(
+                dict(replicate="N_1", sample_id="a", embryo_id="N_1/a", side=side, channel="p",
+                     compartment="nuclear", method="per_slice", z_start=1, z_stop=1,
+                     position_index=x, distance_um=float(x), masked_sum=value * 5,
+                     mask_weight=5.0, band_weight=10.0, masked_mean=value, mask_fraction=0.5,
+                     phase="1", phase_source="test")
+            )
+    table = pd.DataFrame(records)
+    for combined in (False, True):
+        c = cfg(tmp_path, align_profiles=1, background_subtract=False, combine_sides=combined)
+        profiles, _ = ihc.side_profiles(table, c)
+        peaks = profiles[profiles.raw_value == 100.0]
+        assert (peaks.position_index == 1).all() and np.allclose(peaks.distance_um, 1.0)
+        assert profiles.groupby("profile_unit").distance_um.min().eq(0).all()
+    # Posterior alignment is unchanged.
+    profiles, _ = ihc.side_profiles(table, cfg(tmp_path, background_subtract=False))
+    assert np.allclose(profiles.distance_um, profiles.posterior_distance_um)
+    with pytest.raises(ValueError):
+        cfg(tmp_path, align_profiles=2).validate()

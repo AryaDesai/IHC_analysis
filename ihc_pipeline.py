@@ -352,6 +352,14 @@ class Config:
         "'pool' weights them by mask coverage.",
         ("mean", "pool"),
     )
+    align_profiles: int = setting(
+        0, "Analysis",
+        "End of the band that profiles are aligned to and distances are measured from. 0 "
+        "aligns the posterior ends (distance runs posterior to anterior) and 1 aligns the "
+        "anterior ends, the last point of each band (distance runs anterior to posterior). "
+        "Exclusions and day_reference_um are always measured from the posterior end.",
+        (0, 1),
+    )
     background_subtract: bool = setting(
         True, "Normalization",
         "Subtract a baseline from each embryo's profiles. The baseline is a low percentile "
@@ -1851,11 +1859,21 @@ def side_profiles(measurements, config):
         if c.z_average == "pool"
         else t["z_mean" if c.z_average == "mean" else "z_median"]
     )
+    t["posterior_distance_um"] = t.distance_um
+    if c.align_profiles == 1:
+        # Measure each side from its anterior end. Every position of a band is kept
+        # (excluded ones as gaps), so the last position is the band's anterior end.
+        # This is done before sides are combined so that they line up at that end.
+        band = ["replicate", "sample_id", "embryo_id", "side", "channel", "compartment"]
+        g = t.groupby(band, sort=False)
+        t["position_index"] = g.position_index.transform("max") - t.position_index
+        t["distance_um"] = g.distance_um.transform("max") - t.distance_um
     if c.combine_sides:
         for name in ("masked_sum", "mask_weight"):
             t[name] = t[name].where(np.isfinite(t.raw_value), 0.0)
         t = t.groupby([k for k in group if k != "side"], sort=False, as_index=False).agg(
             distance_um=("distance_um", "first"),
+            posterior_distance_um=("posterior_distance_um", "mean"),
             raw_value=("raw_value", "mean"),
             masked_sum=("masked_sum", "sum"),
             mask_weight=("mask_weight", "sum"),
@@ -1907,7 +1925,7 @@ def side_profiles(measurements, config):
         # was traced.
         day = ["imaging_day", "channel", "compartment"]
         lo, hi = c.day_reference_um
-        factor = t[t.distance_um.between(lo, hi)].groupby(day).value.median()
+        factor = t[t.posterior_distance_um.between(lo, hi)].groupby(day).value.median()
         factor = factor.where(factor > 0).rename("day_factor")  # a factor of 0 or less cannot be used for scaling
         t = t.join(factor, on=day)
         t["value"] = t.value / t.day_factor
@@ -2026,6 +2044,13 @@ def _phase_y_label(c):
     return f"Intensity ({', '.join(steps) or 'raw'}) (AU)"
 
 
+def _distance_label(c):
+    """X-axis label naming the end that profiles are aligned to."""
+    if c.align_profiles == 1:
+        return "Anterior to posterior distance (µm)"
+    return "Posterior to anterior distance (µm)"
+
+
 def _method_label(c):
     """Readable name of the Z method used for the profiles."""
     return {
@@ -2088,7 +2113,7 @@ def plot_phases(profiles, config, summary=None):
                 label = f"Phase {phase} ({_phase_counts(profiles, c, channel, compartment, phase)})"
                 ax.fill_between(d, g.low.to_numpy(), g.high.to_numpy(), alpha=0.2, color=color, lw=0)
                 ax.plot(d, center, label=label, color=color, lw=3)
-            ax.set_xlabel("Posterior to anterior distance (µm)")
+            ax.set_xlabel(_distance_label(c))
             ax.set_ylabel(_phase_y_label(c))
             if not subset.empty:
                 ax.legend(frameon=False, labelcolor=MUTED, fontsize=14)
@@ -2148,7 +2173,7 @@ def plot_individual_profiles(profiles, config):
                     color=INK,
                 )
                 if row == len(c.plot_channels) - 1:
-                    axis.set_xlabel("Posterior to anterior distance (µm)")
+                    axis.set_xlabel(_distance_label(c))
                 if col == 0:
                     axis.set_ylabel(_phase_y_label(c))
         fig.suptitle(
@@ -2212,7 +2237,7 @@ def plot_phase_panels(profiles, config, summary=None):
                     loc="left",
                     color=INK,
                 )
-                axis.set_xlabel("Posterior to anterior distance (µm)")
+                axis.set_xlabel(_distance_label(c))
             axes[0, 0].set_ylabel(_phase_y_label(c))
             fig.suptitle(_phase_title(c, channel, compartment), x=0.01, ha="left", color=INK)
         figures[channel] = fig
