@@ -15,7 +15,7 @@
 
 requires("1.54");
 input = getDirectory("Folder with the images (for ND2 files, the replicate folder)");
-output = getDirectory("Output folder of the notebook (ihc_results)");
+output = defaultOutputRoot(input);
 
 // The replicate is the N_<number> part of a folder name in the input path.
 replicate = "N_1";
@@ -69,6 +69,7 @@ for (i = 0; i < files.length; i++) {
 total = paths.length;
 if (total == 0) exit("No " + type + " images were found in\n" + input);
 
+File.makeDirectory(output);
 File.makeDirectory(output + "rois/");
 File.makeDirectory(output + "rois/" + replicate + "/");
 luts = newArray("Blue", "Green", "Red", "Magenta"); // display colours for channels 1 to 4
@@ -118,8 +119,10 @@ for (im = 0; im < total; im++) {
 		id = "side" + side;
 		selectImage(traceID);
 		run("Select None");
+		// Set the drawing width before restoring a line. This also gives restored
+		// lines Fiji's translucent wide-line display and sets the width of a redraw.
+		run("Line Width...", "line=" + lineWidth);
 		loaded = loadCSVLine(original, id);
-		if (!loaded) run("Line Width...", "line=" + lineWidth);
 		setTool("polyline");
 		message = "Image " + (im + 1) + " of " + total + ": " + sample + "\nLine " + (side + 1) + " of " + sides + "\n \n";
 		if (loaded) message = message + "The saved line is shown and can be edited.\n";
@@ -204,4 +207,20 @@ function loadCSVLine(text, id) {
 	makeSelection("polyline", x, y);
 	Roi.setStrokeWidth(lineWidthSaved);
 	return true;
+}
+
+// Find the notebook's default output beside the experimental-data folder.
+// Walking up also handles TIFFs selected from a subfolder of a replicate.
+function defaultOutputRoot(imageFolder) {
+	folder = replace(imageFolder, "\\", "/");
+	while (endsWith(folder, "/")) folder = substring(folder, 0, lengthOf(folder) - 1);
+	while (folder != "") {
+		if (File.exists(folder + "/ihc_pipeline.py")) return folder + "/ihc_results/";
+		analysis = folder + "/analysis_scripts";
+		if (File.exists(analysis + "/ihc_pipeline.py")) return analysis + "/ihc_results/";
+		parent = File.getParent(folder);
+		if (parent == folder) break;
+		folder = parent;
+	}
+	exit("Could not find analysis_scripts/ihc_pipeline.py above the image folder:\n" + imageFolder);
 }
