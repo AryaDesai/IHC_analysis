@@ -135,6 +135,15 @@ side0,0,1967,390,100
 side0,1,1682,337,100
 ```
 
+The ROI macro saves to `analysis_scripts/ihc_results` automatically, using the
+same default as the notebook. `PSM_phase_sorting.ijm` reads the ROI CSVs from
+that same folder to show profiles during phase sorting. Neither macro asks
+for an ROI folder. They locate `analysis_scripts` from the selected image
+folder, including when TIFFs are in a subfolder of a replicate. These macros
+use the default output location; keep the notebook's `OUTPUT_ROOT` at its
+default when using them. Phase labels are saved to `phases.csv` in the
+selected ND2 folder.
+
 Each row is a point that was clicked when the band was drawn, given in image
 pixels counted from 0. The first point of each side is at the posterior end.
 The centre line of the band is a smooth spline through these points, the same
