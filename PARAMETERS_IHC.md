@@ -1,21 +1,18 @@
 # Settings
 
-Every setting of the pipeline, grouped as in the notebook's parameter table. This file is
-generated from `Config` in `ihc_pipeline.py`. In the notebook, `ihc.parameter_table(cfg)`
-shows the values currently in use.
 
 ## Files
 
 | Setting | Default | Description |
 |---|---|---|
-| `experimental_data` | `''` | Folder that contains the replicate folders (N_1, N_2, ...). The folder names can have more text after the number, as in N_1_oct_6. |
-| `output_root` | `''` | Folder where masks, ROIs, measurements and figures are saved. It has to be separate from the image folders, and a run stops if it lies inside one. |
+| `experimental_data` | `''` | Folder that contains the replicate folders (N_1, N_2, ...). |
+| `output_root` | `''` | Folder where masks, ROIs, measurements and figures are saved. It has to be separate from the image folders |
 | `replicates` | `()` | Replicates to analyse, for example ('N_1', 'N_2'). Leave empty to use every replicate found. |
 | `image_glob` | `'*.tiff'` | Filename pattern of the exported multichannel TIFFs. TIFFs with fewer channels than the settings need are skipped. |
-| `include_nd2` | `True` | Also look for ND2 files. When a position has also been exported as a TIFF, the TIFF is used for that position. |
-| `denoised_tokens` | `(' - Denoised', '_denoised')` | Text that marks a filename as an NIS-denoised export. The original image has the same name with this text removed. |
-| `nis_preference` | `'nd2'` | The denoised export that supplies the DAPI when a sample has both an ND2 and a TIFF version. If the preferred export is missing, the other one is used. Choices: `nd2`, `tiff`. |
-| `export_csv` | `False` | Also save each sample's measurements as CSV, next to the Parquet file. |
+| `include_nd2` | `True` | Also look for ND2 files. When a position has also been exported as a TIFF, the TIFF is used for that embryo. |
+| `denoised_tokens` | `(' - Denoised', '_denoised')` | Text that marks a filename as an NIS-denoised export. The original image needs to have the same name minus denoised |
+| `nis_preference` | `'nd2'` | The denoised export that supplies the DAPI when a sample has both an ND2 and a TIFF version. Choices: `nd2`, `tiff`. |
+| `export_csv` | `False` | Also save each sample's measurements as CSV next to the Parquet file. |
 
 ## Phases
 
