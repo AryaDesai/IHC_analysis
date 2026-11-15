@@ -1,4 +1,4 @@
-# Recreate this on each machine with uv sync; do not copy a virtual environment.
+# Recreate this on each machine with uv sync
 .venv/
 __pycache__/
 *.py[cod]
@@ -9,7 +9,7 @@ __pycache__/
 # Generated images, public model caches and machine-specific run state.
 ihc_results/
 .ihc_previous/
-
+scratchpad/
 
 # Local files kept out of the repository.
 IHC_exclusions.csv
