@@ -5,9 +5,7 @@ rem   sync pull    get the latest code, raw data and results
 rem   sync push    send this computer's results to the server
 rem
 rem Add --dry-run to either one to list what would be copied without copying.
-rem The raw data is mirrored from the server, so local raw files that are not on
-rem the server are deleted. Results are copied in both directions without deleting
-rem anything, and a file is replaced only when the incoming copy is newer.
+rem The raw data is mirrored from the server
 
 setlocal
 set "SERVER=R:\Basic_Sciences\CDB\OzbudakLab\Arya CDB\MEK_oscillation_project"
