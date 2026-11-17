@@ -16,6 +16,7 @@ torchvision>=0.21
 cellpose==4.2.1.1
 opencv-python-headless
 numba>=0.61
+lmfit
 ipykernel
 tqdm
 ipywidgets

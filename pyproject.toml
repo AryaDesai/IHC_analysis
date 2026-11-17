@@ -23,7 +23,8 @@ dependencies = [
     "numba>=0.61",
     "ipykernel",
     "tqdm",
-    "ipywidgets"
+    "ipywidgets",
+    "lmfit>=1.3.4",
 ]
 
 [project.optional-dependencies]
