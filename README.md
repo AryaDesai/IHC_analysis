@@ -263,6 +263,15 @@ results from the server. `push` copies the results from this computer to the
 server and lists any code changes that have not been committed. Adding
 `--dry-run` lists what would be copied without copying anything.
 
+On a Mac, mount the server project or any of its parent folders in Finder.
+`sync.sh` automatically finds the project through the mounted SMB share, even
+when the mount name changes. This detection uses `python3`. To choose a specific
+mounted project folder, set `SYNC_SERVER`, for example:
+
+```sh
+SYNC_SERVER="/Volumes/MEK_oscillation_project" ./sync.sh push --dry-run
+```
+
 The raw data is mirrored, which means the local copy is made to match the
 server, and local raw files that are not on the server are deleted. Results are
 copied in both directions without deleting anything, and a file is replaced

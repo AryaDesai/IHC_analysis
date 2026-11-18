@@ -10,7 +10,7 @@
 # anything, and a file is replaced only when the incoming copy is newer.
 
 set -e
-SERVER="${SYNC_SERVER:-/Volumes/Arya CDB/MEK_oscillation_project}"
+SERVER="${SYNC_SERVER:-}"
 RESULTS=analysis_scripts/ihc_results
 HERE=$(cd "$(dirname "$0")" && pwd -P)
 LOCAL=$(dirname "$HERE")
@@ -22,8 +22,56 @@ if [ ! -x "$RSYNC" ]; then
     echo "Homebrew rsync was not found at $RSYNC. Install it with: brew install rsync"
     exit 1
 fi
+# Resolve the server's project path through any mounted parent of that folder.
+# Python's URL decoder handles spaces and other escaped characters in SMB URLs.
+if [ -z "$SERVER" ]; then
+    SERVER=$(python3 - <<'PY'
+from pathlib import Path, PurePosixPath
+import subprocess
+import sys
+from urllib.parse import unquote, urlsplit
+
+host = "fsmresfiles.fsm.northwestern.edu"
+project = PurePosixPath(
+    "/fsmresfiles/Basic_Sciences/CDB/OzbudakLab/Arya CDB/MEK_oscillation_project"
+)
+candidates = set()
+for line in subprocess.check_output(["mount"], text=True).splitlines():
+    if " (smbfs," not in line:
+        continue
+    source, separator, mountpoint = line.rpartition(" (")[0].partition(" on ")
+    if not separator or not source.startswith("//"):
+        continue
+    remote = urlsplit("smb:" + source)
+    if remote.hostname != host:
+        continue
+    try:
+        relative = project.relative_to(PurePosixPath(unquote(remote.path)))
+    except ValueError:
+        continue
+    candidate = Path(mountpoint).joinpath(*relative.parts)
+    if (candidate / "analysis_scripts").is_dir():
+        candidates.add(str(candidate.resolve()))
+
+if len(candidates) != 1:
+    if candidates:
+        print("Multiple mounted copies of the server project were found:", file=sys.stderr)
+        for candidate in sorted(candidates):
+            print(f"  {candidate}", file=sys.stderr)
+    else:
+        print("Cannot find the server project in the mounted SMB shares.", file=sys.stderr)
+    print("Mount the project or a parent folder in Finder, or set SYNC_SERVER to the mounted project path.", file=sys.stderr)
+    sys.exit(1)
+print(candidates.pop())
+PY
+    )
+fi
 if [ ! -d "$SERVER" ]; then
     echo "Cannot reach the server folder: $SERVER (is the share mounted?)"
+    exit 1
+fi
+if [ ! -d "$SERVER/analysis_scripts" ]; then
+    echo "Not a project folder: $SERVER (expected an analysis_scripts subfolder)"
     exit 1
 fi
 if [ "$LOCAL" = "$(cd "$SERVER" && pwd -P)" ]; then
