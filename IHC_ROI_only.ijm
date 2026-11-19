@@ -10,10 +10,15 @@
 // opened separately and named <file>_P<position>, the name the notebook gives that
 // sample. NIS-denoised exports are skipped, and the images themselves are not saved.
 //
-// A side can be left out with 'Skip this side'. The sides that are drawn keep their
-// ids, so skipping the first side of a flat sample saves only side1.
+// A side can be left out with 'Skip this side' in the dialog or with the Alt key in
+// the polling loop. The sides that are drawn keep their ids. Skipping the first side
+// of a flat sample saves only side1.
 
 requires("1.54");
+// When use_polling_loop is true the Log window shows the length of the line while it
+// is drawn. The space key accepts the line and the Alt key skips the side. When it is
+// false the macro asks for each line with the 'Draw the line' dialog.
+use_polling_loop = true;
 input = getDirectory("Folder with the images (for ND2 files, the replicate folder)");
 output = defaultOutputRoot(input);
 
@@ -126,14 +131,20 @@ for (im = 0; im < total; im++) {
 		setTool("polyline");
 		message = "Image " + (im + 1) + " of " + total + ": " + sample + "\nLine " + (side + 1) + " of " + sides + "\n \n";
 		if (loaded) message = message + "The saved line is shown and can be edited.\n";
-		message = message + "Draw the line from posterior to anterior, then click OK.\nThe line applies to every channel and Z-plane.\n \nTick 'Skip this side' to leave this side out.";
 		beep();
-		skip = askSide(message);
-		selectImage(traceID);
-		while (!skip && selectionType() != 5 && selectionType() != 6) {
-			skip = askSide("No line was found on " + sample + ".\nDraw a line from posterior to anterior, then click OK,\nor tick 'Skip this side'.");
+		if (use_polling_loop) {
+			message = message + "Draw the line from posterior to anterior.\nThe line applies to every channel and Z-plane.\n \nPress space to accept or press Alt to skip this side.";
+			skip = pollSide(message, traceID, sample);
+		} else {
+			message = message + "Draw the line from posterior to anterior, then click OK.\nThe line applies to every channel and Z-plane.\n \nTick 'Skip this side' to leave this side out.";
+			skip = askSide(message);
 			selectImage(traceID);
+			while (!skip && selectionType() != 5 && selectionType() != 6) {
+				skip = askSide("No line was found on " + sample + ".\nDraw a line from posterior to anterior, then click OK,\nor tick 'Skip this side'.");
+				selectImage(traceID);
+			}
 		}
+		selectImage(traceID);
 		if (skip) continue;
 		drawn++;
 		getSelectionCoordinates(xs, ys);
@@ -175,6 +186,52 @@ function askSide(message) {
 	Dialog.addCheckbox("Skip this side", false);
 	Dialog.show();
 	return Dialog.getCheckbox();
+}
+
+// Show the message in the Log window beside the image and keep the length of the
+// line up to date on the last line of the Log. The image stays usable for drawing.
+// Returns false when space is pressed with a line drawn and true when Alt is pressed.
+function pollSide(message, imageID, sample) {
+	selectImage(imageID);
+	getPixelSize(unit, pixelWidth, pixelHeight);
+	getLocationAndSize(windowX, windowY, windowWidth, windowHeight);
+	print("\\Clear");
+	print(message);
+	if (unit == "pixel" || unit == "pixels") print("This image has no pixel size. The length is given in pixels.");
+	print(" ");
+	print("No line has been drawn yet.");
+	// The Log window is placed to the right of the image window and kept on the
+	// screen. The image is then made active again because only the active window
+	// receives the key presses.
+	selectWindow("Log");
+	setLocation(Math.min(windowX + windowWidth, screenWidth - 400), windowY);
+	selectImage(imageID);
+	shown = "No line has been drawn yet.";
+	while (true) {
+		if (!isOpen(imageID)) exit("The image of " + sample + " was closed while its line was being drawn.\nNothing was saved for it.");
+		// Selection types 5 and 6 are a straight line and a segmented line.
+		isLine = selectionType() == 5 || selectionType() == 6;
+		if (isKeyDown("alt")) {
+			skip = true;
+			break;
+		}
+		if (isKeyDown("space") && isLine) {
+			skip = false;
+			break;
+		}
+		text = "No line has been drawn yet.";
+		// The length is measured along the drawn line in the calibrated unit of the image.
+		if (isLine) text = "The line is " + d2s(getValue("Length"), 1) + " " + unit + " long.";
+		// The Log is rewritten only when the text changes. "\\Update:" replaces its last line.
+		if (text != shown) {
+			print("\\Update:" + text);
+			shown = text;
+		}
+		wait(100);
+	}
+	// Wait until the key is released so that one press does not also end the next side.
+	while (isKeyDown("space") || isKeyDown("alt")) wait(50);
+	return skip;
 }
 
 // Draw the saved line with this id from a rois.csv text as the current selection.
