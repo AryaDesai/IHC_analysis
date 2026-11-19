@@ -32,7 +32,7 @@ for (p = 0; p < parts.length; p++) {
 Dialog.create("IHC ROI settings");
 Dialog.addChoice("Image files:", newArray("ND2", "TIFF"));
 Dialog.addString("Replicate:", replicate);
-Dialog.addNumber("Line width for new lines (pixels):", 100);
+Dialog.addNumber("Line width for new lines (pixels):", 200);
 Dialog.addCheckbox("Redo images that already have ROIs", false);
 Dialog.show();
 type = Dialog.getChoice();
@@ -105,7 +105,7 @@ for (im = 0; im < total; im++) {
 
 	Dialog.create("How is this sample mounted?");
 	Dialog.addMessage("Image " + (im + 1) + " of " + total + ": " + sample);
-	Dialog.addChoice("Mounting:", newArray("Lateral", "Flat", "Skip"));
+	Dialog.addChoice("Mounting:", newArray("Flat","Lateral", "Skip"));
 	beep();
 	Dialog.show();
 	mount = Dialog.getChoice();
@@ -227,7 +227,6 @@ function pollSide(message, imageID, sample) {
 			print("\\Update:" + text);
 			shown = text;
 		}
-		wait(100);
 	}
 	// Wait until the key is released so that one press does not also end the next side.
 	while (isKeyDown("space") || isKeyDown("alt")) wait(50);
