@@ -11,7 +11,8 @@
 // kept. A sample without saved lines can be drawn from scratch.
 //
 // Choosing 'Skip' in the mounting dialog leaves a sample as it was. Skipping a side
-// that has a saved line removes that line when the sample is saved.
+// (Alt, or 'Skip this side') deletes its saved line. When every side is skipped, the
+// sample's rois.csv is moved to rois.csv.previous, so the sample has no ROIs.
 
 requires("1.54");
 input = getDirectory("Folder with the images (for ND2 files, the replicate folder)");
@@ -97,6 +98,7 @@ luts = newArray("Blue", "Green", "Red", "Magenta"); // display colours for chann
 saved = 0;
 unchanged = 0;
 skipped = 0;
+removed = 0;
 
 for (k = 0; k < total; k++) {
 	im = order[k];
@@ -188,12 +190,12 @@ for (k = 0; k < total; k++) {
 	}
 	selectImage(traceID);
 	close();
-	// With every side skipped there is nothing to save, and a saved CSV is left as it was.
-	if (drawn == 0) {
+	// With every side skipped and nothing saved before, there is nothing to do.
+	if (drawn == 0 && original == "") {
 		skipped++;
 		continue;
 	}
-	if (result == before) {
+	if (drawn > 0 && result == before) {
 		unchanged++;
 		continue;
 	}
@@ -203,6 +205,14 @@ for (k = 0; k < total; k++) {
 	current = "";
 	if (File.exists(csvPath)) current = File.openAsString(csvPath);
 	if (current != original) exit("The ROIs of " + sample + " were changed elsewhere while the image was open.\nNothing was saved for it: " + csvPath);
+	// With every side skipped, the saved lines are all deleted: the CSV becomes the backup.
+	if (drawn == 0) {
+		backup = folder + "rois.csv.previous";
+		if (File.exists(backup)) deleted = File.delete(backup);
+		if (!File.rename(csvPath, backup)) exit("Could not remove the ROIs of " + sample + ": " + csvPath);
+		removed++;
+		continue;
+	}
 	// The CSV is written to a temporary file and then renamed, so the file on disk
 	// holds either the old or the new ROIs even if saving is interrupted.
 	File.makeDirectory(folder);
@@ -216,7 +226,7 @@ for (k = 0; k < total; k++) {
 	if (!File.rename(temp, csvPath)) exit("Could not save the CSV of " + sample + ". The previous version is in rois.csv.previous");
 	saved++;
 }
-showMessage("Correct and inspect ROIs", "Finished.\nSaved: " + saved + "\nUnchanged: " + unchanged + "\nSkipped: " + skipped + "\n \nThe ROI CSVs are under:\n" + roiRoot);
+showMessage("Correct and inspect ROIs", "Finished.\nSaved: " + saved + "\nUnchanged: " + unchanged + "\nSkipped: " + skipped + "\nAll ROIs removed: " + removed + "\n \nThe ROI CSVs are under:\n" + roiRoot);
 
 // Write the current line selection as CSV rows with this id.
 function formatLine(id, fallbackWidth) {
